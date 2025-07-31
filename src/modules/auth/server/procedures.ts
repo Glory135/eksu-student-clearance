@@ -1,8 +1,17 @@
 import { z } from 'zod';
 import { baseProcedure, createTRPCRouter } from '@/trpc/init';
 import { emailService } from '@/lib/emailService';
+import { headers as getHeaders } from "next/headers";
+import { Department, User } from '@/payload-types';
+
 
 export const authRouter = createTRPCRouter({
+  session: baseProcedure.query(async ({ ctx }) => {
+    const headers = await getHeaders();
+    const session = await ctx.payload.auth({ headers });
+    return session;
+  }),
+
   // Send magic link for password setup
   sendMagicLink: baseProcedure
     .input(
@@ -14,6 +23,7 @@ export const authRouter = createTRPCRouter({
       try {
         // Find user by email
         const user = await ctx.payload.find({
+          depth: 1,
           collection: 'users',
           where: {
             email: { equals: input.email },
@@ -25,7 +35,7 @@ export const authRouter = createTRPCRouter({
           throw new Error('User not found');
         }
 
-        const userDoc = user.docs[0];
+        const userDoc = { ...(user.docs[0] as User), department: user.docs[0].department as Department };
 
         // Generate magic link token (this would be handled by Payload's auth)
         const token = 'temp-token'; // TODO: Implement proper token generation
@@ -33,7 +43,7 @@ export const authRouter = createTRPCRouter({
         // Send appropriate welcome email based on role
         if (userDoc.role === 'student') {
           await emailService.sendWelcomeEmail({
-            studentName: userDoc.name,
+            studentName: `${userDoc.lastName} ${userDoc.firstName}`,
             studentEmail: userDoc.email,
             matricNo: userDoc.matricNo || 'N/A',
             department: 'Unknown Department', // TODO: Get department name
@@ -41,9 +51,9 @@ export const authRouter = createTRPCRouter({
           });
         } else if (['officer', 'student-affairs'].includes(userDoc.role)) {
           await emailService.sendOfficerWelcomeEmail({
-            officerName: userDoc.name,
+            officerName: `${userDoc.lastName} ${userDoc.firstName}`,
             officerEmail: userDoc.email,
-            department: 'Unknown Department', // TODO: Get department name
+            department: userDoc.department?.name || 'Unknown Department', // TODO: Get department name
             role: userDoc.role as 'officer' | 'student-affairs',
             magicLink: `${process.env.NEXT_PUBLIC_APP_URL}/verify-email?token=${token}`,
           });
@@ -70,7 +80,7 @@ export const authRouter = createTRPCRouter({
       try {
         // TODO: Implement proper token verification
         // For now, we'll simulate the process
-        
+
         // Find user by token (this would be decoded from the token)
         const user = await ctx.payload.find({
           collection: 'users',
@@ -103,7 +113,7 @@ export const authRouter = createTRPCRouter({
           message: 'Password set successfully',
           user: {
             id: userDoc.id,
-            name: userDoc.name,
+            name: `${userDoc.lastName} ${userDoc.firstName}`,
             email: userDoc.email,
             role: userDoc.role,
           },
@@ -142,7 +152,7 @@ export const authRouter = createTRPCRouter({
 
         // Send password reset email
         await emailService.sendPasswordResetEmail({
-          studentName: userDoc.name,
+          studentName: `${userDoc.lastName} ${userDoc.firstName}`,
           studentEmail: userDoc.email,
           resetLink: `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${resetToken}`,
           requestedAt: new Date().toISOString(),
@@ -169,7 +179,7 @@ export const authRouter = createTRPCRouter({
       try {
         // TODO: Implement proper token verification
         // For now, we'll simulate the process
-        
+
         // Find user by token (this would be decoded from the token)
         const user = await ctx.payload.find({
           collection: 'users',
@@ -206,8 +216,7 @@ export const authRouter = createTRPCRouter({
 
   // Get current user
   getCurrentUser: baseProcedure
-    .input(z.object({}))
-    .query(async ({ ctx }) => {
+    .query(async ({ }) => {
       // TODO: Implement proper user session handling
       // For now, return a mock user
       return {

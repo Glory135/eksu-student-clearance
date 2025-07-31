@@ -1,14 +1,14 @@
 export interface WelcomeEmailData {
-  studentName: string;
-  studentEmail: string;
-  matricNo: string;
-  department: string;
-  magicLink: string;
-  adminName?: string;
+    studentName: string;
+    studentEmail: string;
+    matricNo: string;
+    department: string;
+    magicLink: string;
+    adminName?: string;
 }
 
 export function generateWelcomeEmailHTML(data: WelcomeEmailData): string {
-  return `
+    return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -188,7 +188,7 @@ export function generateWelcomeEmailHTML(data: WelcomeEmailData): string {
 }
 
 export function generateWelcomeEmailText(data: WelcomeEmailData): string {
-  return `
+    return `
 Welcome to EKSU Clearance System
 
 Hello ${data.studentName},

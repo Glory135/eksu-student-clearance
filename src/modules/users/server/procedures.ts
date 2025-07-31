@@ -127,7 +127,7 @@ export const usersRouter = createTRPCRouter({
 
       // Send welcome email
       await emailService.sendWelcomeEmail({
-        studentName: user.name,
+        studentName: `${user.firstName} ${user.lastName}`,
         studentEmail: user.email,
         matricNo: user.matricNo as string,
         department: department.name,
@@ -170,7 +170,7 @@ export const usersRouter = createTRPCRouter({
 
       // Send officer welcome email
       await emailService.sendOfficerWelcomeEmail({
-        officerName: user.name,
+        officerName: `${user.firstName} ${user.lastName}`,
         officerEmail: user.email,
         department: department.name,
         role: user.role as 'officer' | 'student-affairs',
@@ -287,7 +287,7 @@ export const usersRouter = createTRPCRouter({
 
           // Send welcome email
           await emailService.sendWelcomeEmail({
-            studentName: user.name,
+            studentName: `${user.firstName} ${user.lastName}`,
             studentEmail: user.email,
             matricNo: user.matricNo as string,
             department: department.name,
@@ -318,7 +318,6 @@ export const usersRouter = createTRPCRouter({
 
   // Get user statistics
   getStats: baseProcedure
-    .input(z.object({}))
     .query(async ({ ctx }) => {
       // Get all users
       const allUsers = await ctx.payload.find({

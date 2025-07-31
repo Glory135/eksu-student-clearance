@@ -19,11 +19,6 @@ export const ClearanceRecords: CollectionConfig = {
       type: 'relationship',
       relationTo: 'users',
       required: true,
-      admin: {
-        filterOptions: {
-          role: { equals: 'student' },
-        },
-      },
     },
     {
       name: 'department',
@@ -62,11 +57,6 @@ export const ClearanceRecords: CollectionConfig = {
       type: 'relationship',
       relationTo: 'users',
       required: false,
-      admin: {
-        filterOptions: {
-          role: { in: ['officer', 'student-affairs', 'admin'] },
-        },
-      },
     },
     {
       name: 'document',
@@ -125,18 +115,18 @@ export const ClearanceRecords: CollectionConfig = {
         if (!data.createdAt) {
           data.createdAt = new Date().toISOString();
         }
-        
+
         // Set action by user
         if (req.user && !data.actionBy) {
           data.actionBy = req.user.id;
         }
-        
+
         // Set IP address and user agent
         if (req.headers) {
-          data.ipAddress = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.socket?.remoteAddress;
-          data.userAgent = req.headers['user-agent'];
+          data.ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || "Unknown";
+          data.userAgent = req.headers.get('user-agent') || "Unknown";
         }
-        
+
         return data;
       },
     ],

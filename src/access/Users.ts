@@ -1,4 +1,5 @@
 // import type { Access, FieldAccess } from 'payload/types';
+import { User } from '@/payload-types';
 import { type FieldAccess, type Access } from 'payload';
 
 // Check if user is an admin
@@ -44,27 +45,27 @@ export const canReviewDocuments: Access = ({ req: { user } }) => {
 // Check if student has set their password
 export const hasStudentSetPassword: Access = ({ req: { user } }) => {
   if (!user || user.role !== 'student') return false;
-  return (user as any).hasSetPassword === true;
+  return (user as User).hasSetPassword === true;
 };
 
 // Check if officer has set their password
 export const hasOfficerSetPassword: Access = ({ req: { user } }) => {
   if (!user || !['officer', 'student-affairs'].includes(user.role)) return false;
-  return (user as any).hasSetPassword === true;
+  return (user as User).hasSetPassword === true;
 };
 
 // Check if user can access features (must have set password)
 export const canAccessFeatures: Access = ({ req: { user } }) => {
   if (!user) return false;
   if (user.role === 'admin') return true; // Admins can always access
-  return (user as any).hasSetPassword === true;
+  return (user as User).hasSetPassword === true;
 };
 
 // Check if user can access student features (must have set password)
 export const canAccessStudentFeatures: Access = ({ req: { user } }) => {
   if (!user) return false;
   if (user.role !== 'student') return true; // Officers and admins can access
-  return (user as any).hasSetPassword === true;
+  return (user as User).hasSetPassword === true;
 };
 
 // Check if user can access officer features (must have set password)
@@ -72,21 +73,21 @@ export const canAccessOfficerFeatures: Access = ({ req: { user } }) => {
   if (!user) return false;
   if (user.role === 'admin') return true; // Admins can always access
   if (!['officer', 'student-affairs'].includes(user.role)) return false;
-  return (user as any).hasSetPassword === true;
+  return (user as User).hasSetPassword === true;
 };
 
 // Check if department can create officers
 export const canDepartmentCreateOfficers: Access = ({ req: { user } }) => {
   if (!user) return false;
   if (user.role === 'admin') return true; // Admins can always create officers
-  
+
   // Officers can create other officers if their department allows it
   if (['officer', 'student-affairs'].includes(user.role)) {
     // This would check if the user's department has canAddOfficers enabled
     // For now, we'll allow officers to create other officers
     return true;
   }
-  
+
   return false;
 };
 
@@ -94,12 +95,12 @@ export const canDepartmentCreateOfficers: Access = ({ req: { user } }) => {
 export const canCreateUsersInDepartment: Access = ({ req: { user } }) => {
   if (!user) return false;
   if (user.role === 'admin') return true; // Admins can create any user
-  
+
   // Officers can create users in their own department
   if (['officer', 'student-affairs'].includes(user.role)) {
     return true; // This would be further restricted by department
   }
-  
+
   return false;
 };
 

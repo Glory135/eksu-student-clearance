@@ -1,18 +1,20 @@
 'use client';
 import { useState } from 'react';
-import { trpc } from '@/trpc/client';
+import { useTRPC } from '@/trpc/client';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import useGetUser from './use-get-user';
+import { RejectionReasonEnum } from '@/modules/documents/types';
 
 export function useDocuments() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const trpc = useTRPC()
+  const { user } = useGetUser()
 
   // Queries
-  const getAllDocuments = trpc.documents.getAll.useQuery(
-    { limit: 50 },
-    {
-      staleTime: 30 * 1000, // 30 seconds
-    }
-  );
+  const getAllDocuments = useQuery(trpc.documents.getAll.queryOptions({
+    limit: 50,
+  }));
 
   const getDocumentById = trpc.documents.getById.useQuery;
 
@@ -20,15 +22,13 @@ export function useDocuments() {
 
   const getDocumentsByDepartment = trpc.documents.getByDepartment.useQuery;
 
-  const getDocumentStats = trpc.documents.getStats.useQuery(
-    {},
-    {
-      staleTime: 60 * 1000, // 1 minute
-    }
-  );
+  const getDocumentStats = useQuery(trpc.documents.getStats.queryOptions({
+    departmentId: user.department?.id || "",
+    studentId: user.id,
+  }));
 
   // Mutations
-  const uploadDocument = trpc.documents.upload.useMutation({
+  const uploadDocument = useMutation(trpc.documents.upload.mutationOptions({
     onSuccess: () => {
       setUploadError('');
       // Invalidate and refetch documents
@@ -37,23 +37,23 @@ export function useDocuments() {
     onError: (error) => {
       setUploadError(`Upload failed: ${error.message}`);
     },
-  });
+  }));
 
-  const reviewDocument = trpc.documents.review.useMutation({
+  const reviewDocument = useMutation(trpc.documents.review.mutationOptions({
     onSuccess: () => {
       // Invalidate and refetch documents
       getAllDocuments.refetch();
       getDocumentStats.refetch();
     },
-  });
+  }));
 
-  const deleteDocument = trpc.documents.delete.useMutation({
+  const deleteDocument = useMutation(trpc.documents.delete.mutationOptions({
     onSuccess: () => {
       // Invalidate and refetch documents
       getAllDocuments.refetch();
       getDocumentStats.refetch();
     },
-  });
+  }));
 
   // Upload helper
   const handleUpload = async (
@@ -87,7 +87,8 @@ export function useDocuments() {
     documentId: string,
     status: 'approved' | 'rejected' | 'under-review',
     reviewNotes?: string,
-    rejectionReason?: string
+    rejectionReason?: RejectionReasonEnum,
+    customRejectionReason?: string
   ) => {
     try {
       await reviewDocument.mutateAsync({
@@ -95,6 +96,7 @@ export function useDocuments() {
         status,
         reviewNotes,
         rejectionReason,
+        customRejectionReason,
       });
     } catch (error) {
       console.error('Review error:', error);

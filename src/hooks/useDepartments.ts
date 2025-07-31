@@ -1,34 +1,37 @@
 'use client';
 import { useState } from 'react';
-import { trpc } from '@/trpc/client';
+import { useTRPC } from '@/trpc/client';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import useGetUser from './use-get-user';
 
 export function useDepartments() {
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+  const trpc = useTRPC()
+  const { user } = useGetUser()
+
 
   // Queries
-  const getAllDepartments = trpc.departments.getAll.useQuery(
-    { limit: 50 },
-    {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    }
-  );
+  const getAllDepartments = useQuery(trpc.departments.getAll.queryOptions({
+    limit: 50,
+  }));
 
-  const getDepartmentById = trpc.departments.getById.useQuery;
+  const getDepartmentById = useQuery(trpc.departments.getById.queryOptions({
+    id: user.department?.id || "",
+  }));
 
-  const getDepartmentStats = trpc.departments.getStats.useQuery;
+  const getDepartmentStats = useQuery(trpc.departments.getStats.queryOptions({
+    id: user.department?.id || "",
+  }));
 
-  const getOfficerCreationEnabled = trpc.departments.getOfficerCreationEnabled.useQuery(
-    {},
-    {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    }
-  );
+  const getOfficerCreationEnabled = useQuery(trpc.departments.getOfficerCreationEnabled.queryOptions());
 
-  const canCreateOfficer = trpc.departments.canCreateOfficer.useQuery;
+  const canCreateOfficer = useQuery(trpc.departments.canCreateOfficer.queryOptions({
+    departmentId: user.department?.id || "",
+  }));
 
   // Mutations
-  const createDepartment = trpc.departments.create.useMutation({
+  const createDepartment = useMutation(trpc.departments.create.mutationOptions({
     onSuccess: () => {
       setCreateError('');
       // Invalidate and refetch departments
@@ -37,21 +40,21 @@ export function useDepartments() {
     onError: (error) => {
       setCreateError(`Failed to create department: ${error.message}`);
     },
-  });
+  }));
 
-  const updateDepartment = trpc.departments.update.useMutation({
+  const updateDepartment = useMutation(trpc.departments.update.mutationOptions({
     onSuccess: () => {
       // Invalidate and refetch departments
       getAllDepartments.refetch();
     },
-  });
+  }));
 
-  const deleteDepartment = trpc.departments.delete.useMutation({
+  const deleteDepartment = useMutation(trpc.departments.delete.mutationOptions({
     onSuccess: () => {
       // Invalidate and refetch departments
       getAllDepartments.refetch();
     },
-  });
+  }));
 
   // Create department helper
   const handleCreateDepartment = async (departmentData: {
@@ -104,23 +107,23 @@ export function useDepartments() {
     // State
     isCreating,
     createError,
-    
+
     // Queries
     departments: getAllDepartments.data?.docs || [],
     officerCreationEnabled: getOfficerCreationEnabled.data?.docs || [],
     isLoading: getAllDepartments.isLoading,
     isOfficerCreationLoading: getOfficerCreationEnabled.isLoading,
-    
+
     // Query functions
     getDepartmentById,
     getDepartmentStats,
     canCreateOfficer,
-    
+
     // Mutations
     createDepartment: handleCreateDepartment,
     updateDepartment: handleUpdateDepartment,
     deleteDepartment: deleteDepartment.mutate,
-    
+
     // Utilities
     clearCreateError: () => setCreateError(''),
     refetch: getAllDepartments.refetch,

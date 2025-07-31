@@ -31,3 +31,11 @@ export type GetDocumentStatsInput = DocumentsRouterInputs['getStats'];
 // Document types
 export type DocumentType = GetAllDocumentsOutput['docs'][0];
 export type DocumentStatsType = GetDocumentStatsOutput; 
+
+export enum RejectionReasonEnum {
+  NOT_CLEAR = 'not-clear',
+  WRONG_TYPE = 'wrong-type',
+  EXPIRED = 'expired',
+  INCOMPLETE = 'incomplete',
+  OTHER = 'other',
+}

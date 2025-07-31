@@ -1,32 +1,35 @@
 'use client';
+import { useTRPC } from '@/trpc/client';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { trpc } from '@/trpc/client';
+import useGetUser from './use-get-user';
 
 export function useClearance() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState('');
+  const trpc = useTRPC()
+  const { user } = useGetUser()
+
 
   // Queries
-  const getStudentClearance = trpc.clearance.getStudentClearance.useQuery;
+  const getStudentClearance = useQuery(trpc.clearance.getStudentClearance.queryOptions({
+    studentId: user.id,
+  }));
 
-  const getAllClearanceProgress = trpc.clearance.getAllClearanceProgress.useQuery(
-    { limit: 50 },
-    {
-      staleTime: 60 * 1000, // 1 minute
-    }
-  );
+  const getAllClearanceProgress = useQuery(trpc.clearance.getAllClearanceProgress.queryOptions({
+    limit: 50,
+  }));
 
-  const getClearanceStats = trpc.clearance.getClearanceStats.useQuery(
-    {},
-    {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    }
-  );
+  const getClearanceStats = useQuery(trpc.clearance.getClearanceStats.queryOptions({
+    departmentId: user.department?.id || "",
+  }));
 
-  const getClearanceTimeline = trpc.clearance.getClearanceTimeline.useQuery;
+  const getClearanceTimeline = useQuery(trpc.clearance.getClearanceTimeline.queryOptions({
+    studentId: user.id,
+  }));
 
   // Mutations
-  const updateClearanceStatus = trpc.clearance.updateClearanceStatus.useMutation({
+  const updateClearanceStatus = useMutation(trpc.clearance.updateClearanceStatus.mutationOptions({
     onSuccess: () => {
       setUpdateError('');
       // Invalidate and refetch clearance data
@@ -36,28 +39,24 @@ export function useClearance() {
     onError: (error) => {
       setUpdateError(`Failed to update clearance status: ${error.message}`);
     },
-  });
+  }));
 
-  const markClearanceCompleted = trpc.clearance.markClearanceCompleted.useMutation({
+  const markClearanceCompleted = useMutation(trpc.clearance.markClearanceCompleted.mutationOptions({
     onSuccess: () => {
       setUpdateError('');
-      // Invalidate and refetch clearance data
       getAllClearanceProgress.refetch();
       getClearanceStats.refetch();
     },
     onError: (error) => {
       setUpdateError(`Failed to mark clearance completed: ${error.message}`);
     },
-  });
+  }));
 
-  const logClearanceAction = trpc.clearance.logClearanceAction.useMutation({
-    onSuccess: () => {
-      // Logging doesn't need to invalidate queries
-    },
+  const logClearanceAction = useMutation(trpc.clearance.logClearanceAction.mutationOptions({
     onError: (error) => {
       console.error('Failed to log clearance action:', error);
     },
-  });
+  }));
 
   // Update status helper
   const handleUpdateStatus = async (
@@ -101,7 +100,7 @@ export function useClearance() {
     studentId: string,
     departmentId: string,
     documentId?: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ) => {
     try {
       await logClearanceAction.mutateAsync({
@@ -120,22 +119,22 @@ export function useClearance() {
     // State
     isUpdating,
     updateError,
-    
+
     // Queries
     clearanceProgress: getAllClearanceProgress.data?.students || [],
     clearanceStats: getClearanceStats.data,
     isLoading: getAllClearanceProgress.isLoading,
     isStatsLoading: getClearanceStats.isLoading,
-    
+
     // Query functions
     getStudentClearance,
     getClearanceTimeline,
-    
+
     // Mutations
     updateClearanceStatus: handleUpdateStatus,
     markClearanceCompleted: handleMarkCompleted,
     logClearanceAction: handleLogAction,
-    
+
     // Utilities
     clearUpdateError: () => setUpdateError(''),
     refetch: getAllClearanceProgress.refetch,

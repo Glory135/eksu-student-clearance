@@ -141,7 +141,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             </Alert>
           )}
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as USER_ROLE_TYPE)} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value={USER_ROLES.student}>Student</TabsTrigger>
               <TabsTrigger value={USER_ROLES.officer}>Officer</TabsTrigger>

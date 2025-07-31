@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "./ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Textarea } from "./ui/textarea";
 import { Label } from "./ui/label";
@@ -9,13 +8,9 @@ import {
   ArrowLeft,
   Download,
   Eye,
-  CheckCircle,
-  XCircle,
   FileText,
   Calendar,
   User,
-  MessageSquare,
-  History,
   Maximize2,
   ZoomIn,
   ZoomOut,
@@ -26,6 +21,7 @@ import {
 import { apiClient } from '../lib/api-client';
 import { toast } from 'sonner';
 import { USER_ROLES } from '@/lib/constatnts';
+import { User as UserType } from '@/payload-types';
 
 interface DocumentViewerProps {
   onBack: () => void;
@@ -42,7 +38,7 @@ interface Document {
   uploadedAt: string;
   reviewNotes?: string;
   downloadUrl?: string;
-  student?: any;
+  student?:  UserType;
 }
 
 export function DocumentViewer({ onBack, userRole, accessToken }: DocumentViewerProps) {
@@ -73,7 +69,7 @@ export function DocumentViewer({ onBack, userRole, accessToken }: DocumentViewer
       if (result.error) {
         toast.error('Failed to load documents');
       } else {
-        setDocuments(result.documents || []);
+        setDocuments(result.documents as unknown as Document[] || []);
       }
     } catch (error) {
       console.error('Documents fetch error:', error);
@@ -267,7 +263,7 @@ export function DocumentViewer({ onBack, userRole, accessToken }: DocumentViewer
               {currentDocument.student && (
                 <div className="flex items-center space-x-2">
                   <User className="h-4 w-4 text-muted-foreground" />
-                  <span>Student: {currentDocument.student.name}</span>
+                  <span>Student: {currentDocument.student.firstName} {currentDocument.student.lastName}</span>
                 </div>
               )}
             </div>

@@ -58,7 +58,7 @@ export const clearanceRouter = createTRPCRouter({
       return {
         student: {
           id: student.id,
-          name: student.name,
+          name: `${student.lastName} ${student.firstName}`,
           email: student.email,
           matricNo: student.matricNo,
           department: student.department as any,
@@ -259,7 +259,7 @@ export const clearanceRouter = createTRPCRouter({
       });
 
       await emailService.sendClearanceCompletedEmail({
-        studentName: student.name,
+        studentName: `${student.lastName} ${student.firstName}`,
         studentEmail: student.email,
         matricNo: student.matricNo as string,
         department: department.name,
@@ -334,7 +334,7 @@ export const clearanceRouter = createTRPCRouter({
       return {
         records: records.docs.map(record => ({
           ...record,
-          user: record.user,
+          user: record.actionBy,
           document: record.document,
           student: record.student,
           department: record.department,
@@ -357,13 +357,14 @@ export const clearanceRouter = createTRPCRouter({
       const record = await ctx.payload.create({
         collection: 'clearance-records',
         data: {
-          action: input.action,
+          recordType: 'document-upload',
+          status: 'success',
+          actionBy: input.action,
           student: input.studentId,
           document: input.documentId,
           department: input.departmentId,
-          timestamp: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
           metadata: input.metadata || {},
-          user: 'current-user-id', // TODO: Get from auth context
           ipAddress: '127.0.0.1', // TODO: Get from request
           userAgent: 'Unknown', // TODO: Get from request
         },
@@ -371,7 +372,7 @@ export const clearanceRouter = createTRPCRouter({
 
       return {
         ...record,
-        user: record.user as any,
+        user: record.actionBy as any,
         document: record.document as any,
         student: record.student as any,
         department: record.department as any,

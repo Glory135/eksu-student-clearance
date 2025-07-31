@@ -211,7 +211,6 @@ export const departmentsRouter = createTRPCRouter({
 
   // Get departments that can create officers
   getOfficerCreationEnabled: baseProcedure
-    .input(z.object({}))
     .query(async ({ ctx }) => {
       const departments = await ctx.payload.find({
         collection: 'departments',

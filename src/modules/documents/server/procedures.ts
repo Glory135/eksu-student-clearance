@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { baseProcedure, createTRPCRouter } from '@/trpc/init';
 import { DocumentNotificationData, emailService } from '@/lib/emailService';
 import type { Sort, Where } from 'payload';
+import { RejectionReasonEnum } from '../types';
 
 export const documentsRouter = createTRPCRouter({
   // Get all documents with filtering
@@ -142,7 +143,7 @@ export const documentsRouter = createTRPCRouter({
         if (officer?.email) {
           await emailService.sendOfficerNotification(
             officer.email,
-            student.name,
+            `${student.firstName} ${student.lastName}`,
             document.fileName,
             department.name
           );
@@ -165,7 +166,7 @@ export const documentsRouter = createTRPCRouter({
         id: z.string(),
         status: z.enum(['approved', 'rejected', 'under-review']),
         reviewNotes: z.string().optional(),
-        rejectionReason: z.enum(['not-clear', 'wrong-type', 'expired', 'incomplete', 'other']).optional(),
+        rejectionReason: z.enum(Object.values(RejectionReasonEnum)).optional(),
         customRejectionReason: z.string().optional(),
       })
     )
@@ -207,7 +208,7 @@ export const documentsRouter = createTRPCRouter({
 
       // Send email notification to student
       const notificationData : DocumentNotificationData = {
-        studentName: student.name,
+        studentName: `${student.firstName} ${student.lastName}`,
         studentEmail: student.email,
         documentName: document.fileName,
         department: department.name,
@@ -215,7 +216,7 @@ export const documentsRouter = createTRPCRouter({
         status: document.status as 'approved' | 'rejected' | 'under-review',
         reviewNotes: document.reviewNotes as string,
         rejectionReason: document.rejectionReason as string,
-        reviewedBy: reviewer?.name,
+        reviewedBy: reviewer?.firstName + " " + reviewer?.lastName || "Unknown",
         reviewedAt: document.reviewedAt as string,
         loginUrl,
       };

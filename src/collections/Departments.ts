@@ -1,5 +1,5 @@
 import type { CollectionConfig } from 'payload';
-import { isAdmin, isAdminOrSelf } from '../access/Users';
+import { isAdmin } from '../access/Users';
 
 export const Departments: CollectionConfig = {
   slug: 'departments',

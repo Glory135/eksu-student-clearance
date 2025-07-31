@@ -11,7 +11,7 @@ export const Documents: CollectionConfig = {
   access: {
     create: canAccessStudentFeatures,
     read: isAdminOrSelf,
-    update: canAccessOfficerFeatures, // Officers must have set password to review
+    update: canAccessOfficerFeatures,
     delete: isAdmin,
   },
   fields: [

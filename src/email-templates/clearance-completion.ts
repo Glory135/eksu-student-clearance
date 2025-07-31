@@ -1,16 +1,16 @@
 export interface ClearanceCompletionData {
-  studentName: string;
-  studentEmail: string;
-  matricNo: string;
-  department: string;
-  completionDate: string;
-  totalDocuments: number;
-  completedDocuments: number;
-  loginUrl: string;
+    studentName: string;
+    studentEmail: string;
+    matricNo: string;
+    department: string;
+    completionDate: string;
+    totalDocuments: number;
+    completedDocuments: number;
+    loginUrl: string;
 }
 
 export function generateClearanceCompletedEmailHTML(data: ClearanceCompletionData): string {
-  return `
+    return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -224,7 +224,7 @@ export function generateClearanceCompletedEmailHTML(data: ClearanceCompletionDat
 }
 
 export function generateClearanceCompletedEmailText(data: ClearanceCompletionData): string {
-  return `
+    return `
 🎉 Clearance Completed! - EKSU Clearance System
 
 Congratulations ${data.studentName}!

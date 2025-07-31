@@ -1,12 +1,12 @@
 export interface PasswordResetEmailData {
-  studentName: string;
-  studentEmail: string;
-  resetLink: string;
-  requestedAt: string;
+    studentName: string;
+    studentEmail: string;
+    resetLink: string;
+    requestedAt: string;
 }
 
 export function generatePasswordResetEmailHTML(data: PasswordResetEmailData): string {
-  return `
+    return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -176,7 +176,7 @@ export function generatePasswordResetEmailHTML(data: PasswordResetEmailData): st
 }
 
 export function generatePasswordResetEmailText(data: PasswordResetEmailData): string {
-  return `
+    return `
 Password Reset Request - EKSU Clearance System
 
 Hello ${data.studentName},

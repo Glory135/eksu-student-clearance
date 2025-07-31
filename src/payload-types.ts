@@ -72,6 +72,7 @@ export interface Config {
     requirements: Requirement;
     documents: Document;
     media: Media;
+    images: Image;
     'clearance-records': ClearanceRecord;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -84,6 +85,7 @@ export interface Config {
     requirements: RequirementsSelect<false> | RequirementsSelect<true>;
     documents: DocumentsSelect<false> | DocumentsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    images: ImagesSelect<false> | ImagesSelect<true>;
     'clearance-records': ClearanceRecordsSelect<false> | ClearanceRecordsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -127,13 +129,15 @@ export interface UserAuthOperations {
  */
 export interface User {
   id: string;
-  name: string;
+  lastName: string;
+  firstName: string;
+  middleName: string;
   role: 'student' | 'officer' | 'student-affairs' | 'admin';
   department?: (string | null) | Department;
   matricNo?: string | null;
   phone?: string | null;
   status: 'active' | 'inactive' | 'suspended';
-  profileImage?: (string | null) | Media;
+  profileImage?: (string | null) | Image;
   lastLogin?: string | null;
   clearanceStatus?: ('not-started' | 'in-progress' | 'completed' | 'on-hold') | null;
   /**
@@ -159,8 +163,6 @@ export interface User {
   resetPasswordExpiration?: string | null;
   salt?: string | null;
   hash?: string | null;
-  _verified?: boolean | null;
-  _verificationToken?: string | null;
   loginAttempts?: number | null;
   lockUntil?: string | null;
   sessions?:
@@ -240,7 +242,7 @@ export interface Requirement {
    * Detailed description of what this document should contain
    */
   description?: string | null;
-  department: string | Department;
+  departments: (string | Department)[];
   documentType:
     | 'transcript'
     | 'payment-receipt'
@@ -303,6 +305,52 @@ export interface Media {
    * Whether this file can be accessed without authentication
    */
   isPublic?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+  sizes?: {
+    thumbnail?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    card?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    tablet?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "images".
+ */
+export interface Image {
+  id: string;
+  alt: string;
+  fileType?: ('image' | 'document' | 'other') | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -465,6 +513,10 @@ export interface PayloadLockedDocument {
         value: string | Media;
       } | null)
     | ({
+        relationTo: 'images';
+        value: string | Image;
+      } | null)
+    | ({
         relationTo: 'clearance-records';
         value: string | ClearanceRecord;
       } | null);
@@ -515,7 +567,9 @@ export interface PayloadMigration {
  * via the `definition` "users_select".
  */
 export interface UsersSelect<T extends boolean = true> {
-  name?: T;
+  lastName?: T;
+  firstName?: T;
+  middleName?: T;
   role?: T;
   department?: T;
   matricNo?: T;
@@ -535,8 +589,6 @@ export interface UsersSelect<T extends boolean = true> {
   resetPasswordExpiration?: T;
   salt?: T;
   hash?: T;
-  _verified?: T;
-  _verificationToken?: T;
   loginAttempts?: T;
   lockUntil?: T;
   sessions?:
@@ -577,7 +629,7 @@ export interface RequirementsSelect<T extends boolean = true> {
   name?: T;
   code?: T;
   description?: T;
-  department?: T;
+  departments?: T;
   documentType?: T;
   isRequired?: T;
   status?: T;
@@ -623,6 +675,59 @@ export interface MediaSelect<T extends boolean = true> {
   uploadedBy?: T;
   fileType?: T;
   isPublic?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+  sizes?:
+    | T
+    | {
+        thumbnail?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        card?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        tablet?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+      };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "images_select".
+ */
+export interface ImagesSelect<T extends boolean = true> {
+  alt?: T;
+  fileType?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;

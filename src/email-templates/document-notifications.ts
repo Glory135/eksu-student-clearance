@@ -1,19 +1,19 @@
 export interface DocumentNotificationData {
-  studentName: string;
-  studentEmail: string;
-  documentName: string;
-  department: string;
-  requirement: string;
-  status: 'approved' | 'rejected' | 'under-review';
-  reviewNotes?: string;
-  rejectionReason?: string;
-  reviewedBy?: string;
-  reviewedAt: string;
-  loginUrl: string;
+    studentName: string;
+    studentEmail: string;
+    documentName: string;
+    department: string;
+    requirement: string;
+    status: 'approved' | 'rejected' | 'under-review';
+    reviewNotes?: string;
+    rejectionReason?: string;
+    reviewedBy?: string;
+    reviewedAt: string;
+    loginUrl: string;
 }
 
 export function generateDocumentApprovedEmailHTML(data: DocumentNotificationData): string {
-  return `
+    return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -196,7 +196,7 @@ export function generateDocumentApprovedEmailHTML(data: DocumentNotificationData
 }
 
 export function generateDocumentRejectedEmailHTML(data: DocumentNotificationData): string {
-  return `
+    return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -401,7 +401,7 @@ export function generateDocumentRejectedEmailHTML(data: DocumentNotificationData
 }
 
 export function generateDocumentUnderReviewEmailHTML(data: DocumentNotificationData): string {
-  return `
+    return `
 <!DOCTYPE html>
 <html lang="en">
 <head>

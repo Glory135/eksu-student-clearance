@@ -1,15 +1,19 @@
 'use client';
 import { useState } from 'react';
-import { trpc } from '@/trpc/client';
+import { useTRPC } from '@/trpc/client';
 import { useRouter } from 'next/navigation';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import useGetUser from './use-get-user';
 
 export function useAuth() {
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const router = useRouter();
+  const trpc = useTRPC()
 
-  const sendMagicLink = trpc.auth.sendMagicLink.useMutation({
+  const { user, isLoading: isUserLoading } = useGetUser()
+
+  const sendMagicLink = useMutation(trpc.auth.sendMagicLink.mutationOptions({
     onSuccess: () => {
       setSuccess('Magic link sent to your email! Please check your inbox.');
       setError('');
@@ -18,10 +22,10 @@ export function useAuth() {
       setError(`Failed to send magic link: ${error.message}`);
       setSuccess('');
     },
-  });
+  }));
 
-  const verifyMagicLink = trpc.auth.verifyMagicLink.useMutation({
-    onSuccess: (data) => {
+  const verifyMagicLink = useMutation(trpc.auth.verifyMagicLink.mutationOptions({
+    onSuccess: () => {
       setSuccess('Password set successfully! You can now login.');
       setError('');
       // Redirect to dashboard after successful verification
@@ -33,9 +37,9 @@ export function useAuth() {
       setError(`Failed to verify magic link: ${error.message}`);
       setSuccess('');
     },
-  });
+  }));
 
-  const sendPasswordReset = trpc.auth.sendPasswordReset.useMutation({
+  const sendPasswordReset = useMutation(trpc.auth.sendPasswordReset.mutationOptions({
     onSuccess: () => {
       setSuccess('Password reset email sent! Please check your inbox.');
       setError('');
@@ -44,9 +48,9 @@ export function useAuth() {
       setError(`Failed to send password reset: ${error.message}`);
       setSuccess('');
     },
-  });
+  }));
 
-  const resetPassword = trpc.auth.resetPassword.useMutation({
+  const resetPassword = useMutation(trpc.auth.resetPassword.mutationOptions({
     onSuccess: () => {
       setSuccess('Password reset successfully! You can now login.');
       setError('');
@@ -59,23 +63,16 @@ export function useAuth() {
       setError(`Failed to reset password: ${error.message}`);
       setSuccess('');
     },
-  });
+  }));
 
-  const getCurrentUser = trpc.auth.getCurrentUser.useQuery(
-    {},
-    {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      retry: 1,
-    }
-  );
 
-  const hasSetPassword = trpc.auth.hasSetPassword.useQuery(
-    { userId: getCurrentUser.data?.id || '' },
+  const hasSetPassword = useQuery(trpc.auth.hasSetPassword.queryOptions(
+    { userId: user.id || '' },
     {
-      enabled: !!getCurrentUser.data?.id,
+      enabled: !!user.id,
       staleTime: 5 * 60 * 1000, // 5 minutes
     }
-  );
+  ));
 
   const clearMessages = () => {
     setError('');
@@ -84,22 +81,22 @@ export function useAuth() {
 
   return {
     // State
-    isLoading: isLoading || sendMagicLink.isLoading || verifyMagicLink.isLoading || 
-               sendPasswordReset.isLoading || resetPassword.isLoading,
+    isLoading: isUserLoading || sendMagicLink.isPending || verifyMagicLink.isPending ||
+      sendPasswordReset.isPending || resetPassword.isPending,
     error,
     success,
-    
+
     // User data
-    user: getCurrentUser.data,
+    user,
     hasSetPassword: hasSetPassword.data?.hasSetPassword || false,
-    isUserLoading: getCurrentUser.isLoading,
-    
+    isUserLoading,
+
     // Mutations
     sendMagicLink: sendMagicLink.mutate,
     verifyMagicLink: verifyMagicLink.mutate,
     sendPasswordReset: sendPasswordReset.mutate,
     resetPassword: resetPassword.mutate,
-    
+
     // Utilities
     clearMessages,
   };

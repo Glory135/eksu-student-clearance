@@ -37,10 +37,11 @@ export const Requirements: CollectionConfig = {
       },
     },
     {
-      name: 'department',
+      name: 'departments',
       type: 'relationship',
       relationTo: 'departments',
       required: true,
+      hasMany: true,
     },
     {
       name: 'documentType',

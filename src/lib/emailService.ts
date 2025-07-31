@@ -9,7 +9,6 @@ import {
 import { generateClearanceCompletedEmailHTML, generateClearanceCompletedEmailText } from '../email-templates/clearance-completion';
 import { generateOfficerWelcomeEmailHTML, generateOfficerWelcomeEmailText } from '../email-templates/officer-welcome-email';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export interface WelcomeEmailData {
   studentName: string;

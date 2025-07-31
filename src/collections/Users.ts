@@ -1,60 +1,62 @@
 import type { CollectionConfig } from 'payload';
 import { isAdmin, isAdminOrSelf } from '../access/Users';
 import { emailService } from '../lib/emailService';
+import { User } from '@/payload-types';
 
 export const Users: CollectionConfig = {
   slug: 'users',
   auth: {
-    verify: {
-      generateEmailHTML: ({ token, user }: { token: string; user: any }) => {
-        const isStudent = user.role === 'student';
-        const isOfficer = ['officer', 'student-affairs'].includes(user.role);
+    // verify: {
+    //   generateEmailHTML: ({ token, user }: { token: string; user: User }) => {
+    //     const isStudent = user.role === 'student';
+    //     const isOfficer = ['officer', 'student-affairs'].includes(user.role);
         
-        if (isStudent) {
-          return `
-            <h1>Welcome to EKSU Clearance System</h1>
-            <p>Hello ${user.name},</p>
-            <p>Your account has been created by the administrator. Please click the link below to verify your email and set your password:</p>
-            <a href="${process.env.NEXT_PUBLIC_APP_URL}/verify-email?token=${token}">Set Your Password</a>
-            <p>This link will expire in 24 hours. If you didn't create this account, please ignore this email.</p>
-            <p>After setting your password, you can login with your email and password.</p>
-          `;
-        } else if (isOfficer) {
-          return `
-            <h1>Welcome to EKSU Clearance System</h1>
-            <p>Hello ${user.name},</p>
-            <p>Your officer account has been created. Please click the link below to verify your email and set your password:</p>
-            <a href="${process.env.NEXT_PUBLIC_APP_URL}/verify-email?token=${token}">Set Your Password</a>
-            <p>This link will expire in 24 hours. If you didn't create this account, please ignore this email.</p>
-            <p>After setting your password, you can login with your email and password.</p>
-          `;
-        } else {
-          return `
-            <h1>Welcome to EKSU Clearance System</h1>
-            <p>Hello ${user.name},</p>
-            <p>Your admin account has been created. Please click the link below to verify your email and set your password:</p>
-            <a href="${process.env.NEXT_PUBLIC_APP_URL}/verify-email?token=${token}">Set Your Password</a>
-            <p>This link will expire in 24 hours. If you didn't create this account, please ignore this email.</p>
-            <p>After setting your password, you can login with your email and password.</p>
-          `;
-        }
-      },
-    },
-    forgotPassword: {
-      generateEmailHTML: ({ token, user }: { token: string; user: any }) => {
-        return `
-          <h1>Password Reset Request</h1>
-          <p>Hello ${user.name},</p>
-          <p>You requested a password reset. Click the link below to reset your password:</p>
-          <a href="${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${token}">Reset Password</a>
-          <p>If you didn't request this, please ignore this email.</p>
-        `;
-      },
-    },
+    //     if (isStudent) {
+    //       return `
+    //         <h1>Welcome to EKSU Clearance System</h1>
+    //         <p>Hello ${user.name},</p>
+    //         <p>Your account has been created by the administrator. Please click the link below to verify your email and set your password:</p>
+    //         <a href="${process.env.NEXT_PUBLIC_APP_URL}/verify-email?token=${token}">Set Your Password</a>
+    //         <p>This link will expire in 24 hours. If you didn't create this account, please ignore this email.</p>
+    //         <p>After setting your password, you can login with your email and password.</p>
+    //       `;
+    //     } else if (isOfficer) {
+    //       return `
+    //         <h1>Welcome to EKSU Clearance System</h1>
+    //         <p>Hello ${user.name},</p>
+    //         <p>Your officer account has been created. Please click the link below to verify your email and set your password:</p>
+    //         <a href="${process.env.NEXT_PUBLIC_APP_URL}/verify-email?token=${token}">Set Your Password</a>
+    //         <p>This link will expire in 24 hours. If you didn't create this account, please ignore this email.</p>
+    //         <p>After setting your password, you can login with your email and password.</p>
+    //       `;
+    //     } else {
+    //       return `
+    //         <h1>Welcome to EKSU Clearance System</h1>
+    //         <p>Hello ${user.name},</p>
+    //         <p>Your admin account has been created. Please click the link below to verify your email and set your password:</p>
+    //         <a href="${process.env.NEXT_PUBLIC_APP_URL}/verify-email?token=${token}">Set Your Password</a>
+    //         <p>This link will expire in 24 hours. If you didn't create this account, please ignore this email.</p>
+    //         <p>After setting your password, you can login with your email and password.</p>
+    //       `;
+    //     }
+    //   },
+    // },
+    // forgotPassword: {
+    //   // @ts-expect-error i dont know why
+    //   generateEmailHTML: ({ token, user }: { token: string; user: User }) => {
+    //     return `
+    //       <h1>Password Reset Request</h1>
+    //       <p>Hello ${user.name},</p>
+    //       <p>You requested a password reset. Click the link below to reset your password:</p>
+    //       <a href="${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${token}">Reset Password</a>
+    //       <p>If you didn't request this, please ignore this email.</p>
+    //     `;
+    //   },
+    // },
   },
   admin: {
-    useAsTitle: 'name',
-    defaultColumns: ['name', 'email', 'role', 'department'],
+    useAsTitle: 'lastName',
+    defaultColumns: ['lastName', 'firstName', 'middleName', 'email', 'role', 'department'],
   },
   access: {
     create: isAdmin,
@@ -64,7 +66,17 @@ export const Users: CollectionConfig = {
   },
   fields: [
     {
-      name: 'name',
+      name: 'lastName',
+      type: 'text',
+      required: true,
+    },
+    {
+      name: 'firstName',
+      type: 'text',
+      required: true,
+    },
+    {
+      name: 'middleName',
       type: 'text',
       required: true,
     },
@@ -122,7 +134,7 @@ export const Users: CollectionConfig = {
     {
       name: 'profileImage',
       type: 'upload',
-      relationTo: 'media',
+      relationTo: 'images',
       required: false,
     },
     {

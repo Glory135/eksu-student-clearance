@@ -16,6 +16,7 @@ import { Departments } from './collections/Departments';
 import { Requirements } from './collections/Requirements';
 import { Documents } from './collections/Documents';
 import { ClearanceRecords } from './collections/ClearanceRecords';
+import { Images } from './collections/Images';
 
 
 const filename = fileURLToPath(import.meta.url);
@@ -47,7 +48,7 @@ const cloudinaryAdapter = () => ({
         const uploadStream = cloudinary.uploader.upload_stream(
           {
             resource_type: 'auto', // auto-detect file type (image, video, etc.)
-            public_id: `${collection.slug}/${file.filename.replace(/\.[^/.]+$/, '')}`, // Set custom file name without extension, and it also previxed the cleaned filename with media/
+            public_id: `${process.env.NEXT_PUBLIC_NAME || ""}${process.env.NEXT_PUBLIC_NAME && "/"}${collection.slug}/${file.filename.replace(/\.[^/.]+$/, '')}`, // Set custom file name without extension, and it also previxed the cleaned filename with media/
             overwrite: false, // Do not overwrite if a file with the same name exists
             use_filename: true, // Use original filename
           },
@@ -77,7 +78,7 @@ const cloudinaryAdapter = () => ({
     try {
       // We remove the file extension from the filename and then target the file
       // inside the "media/" folder on Cloudinary (which we used as the upload path)
-      await cloudinary.uploader.destroy(`${collection}/${filename.replace(/\.[^/.]+$/, '')}`)
+      await cloudinary.uploader.destroy(`${process.env.NEXT_PUBLIC_NAME || ""}${process.env.NEXT_PUBLIC_NAME && "/"}${collection}/${filename.replace(/\.[^/.]+$/, '')}`)
     } catch (error) {
       // if something error occured we will catch the error and respond the error in console
       console.error('Cloudinary Delete Error:', error)
@@ -105,6 +106,7 @@ export default buildConfig({
     Requirements,
     Documents,
     Media,
+    Images,
     ClearanceRecords,
   ],
   secret: process.env.PAYLOAD_SECRET || '',
@@ -129,7 +131,20 @@ export default buildConfig({
           adapter: cloudinaryAdapter,
           disableLocalStorage: true, // Prevent Payload from saving files to disk
           generateFileURL: ({ filename }: { filename: string }) => {
-            return cloudinary.url(`media/${filename}`, {
+            return cloudinary.url(`${process.env.NEXT_PUBLIC_NAME || ""}${process.env.NEXT_PUBLIC_NAME && "/"}media/${filename}`, {
+              secure: true,
+              transformation: [
+                { quality: 'auto' },
+                { fetch_format: 'auto' }
+              ]
+            });
+          }
+        },
+        images: {
+          adapter: cloudinaryAdapter,
+          disableLocalStorage: true, // Prevent Payload from saving files to disk
+          generateFileURL: ({ filename }: { filename: string }) => {
+            return cloudinary.url(`${process.env.NEXT_PUBLIC_NAME || ""}${process.env.NEXT_PUBLIC_NAME && "/"}images/${filename}`, {
               secure: true,
               transformation: [
                 { width: 800, height: 800, crop: 'fill', gravity: 'auto' },

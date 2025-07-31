@@ -5,9 +5,6 @@ import { Badge } from '../ui/badge';
 import { StatusBadge } from './StatusBadge';
 import { 
   Building, 
-  CheckCircle, 
-  Clock, 
-  XCircle,
   ChevronRight
 } from 'lucide-react';
 
