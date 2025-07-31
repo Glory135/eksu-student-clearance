@@ -117,7 +117,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           <div className="flex justify-center mb-4">
             <Logo />
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
+          <CardTitle className="text-2xl font-bold">Welcome</CardTitle>
           <CardDescription>
             Sign in to your EKSU Clearance account
           </CardDescription>
