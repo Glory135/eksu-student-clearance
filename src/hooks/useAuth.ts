@@ -13,6 +13,46 @@ export function useAuth() {
 
   const { user, isLoading: isUserLoading } = useGetUser()
 
+  // Login mutation
+  const login = useMutation(trpc.auth.login.mutationOptions({
+    onSuccess: (data) => {
+      setSuccess('Login successful! Redirecting...');
+      setError('');
+      // Redirect based on user role
+      setTimeout(() => {
+        if (data.user.role === 'student') {
+          router.push('/dashboard/student');
+        } else if (data.user.role === 'officer') {
+          router.push('/dashboard/officer');
+        } else if (data.user.role === 'admin') {
+          router.push('/dashboard/admin');
+        } else {
+          router.push('/dashboard');
+        }
+      }, 1000);
+    },
+    onError: (error) => {
+      setError(`Login failed: ${error.message}`);
+      setSuccess('');
+    },
+  }));
+
+  // Logout mutation
+  const logout = useMutation(trpc.auth.logout.mutationOptions({
+    onSuccess: () => {
+      setSuccess('Logged out successfully');
+      setError('');
+      // Redirect to login page
+      setTimeout(() => {
+        router.push('/login');
+      }, 1000);
+    },
+    onError: (error) => {
+      setError(`Logout failed: ${error.message}`);
+      setSuccess('');
+    },
+  }));
+
   const sendMagicLink = useMutation(trpc.auth.sendMagicLink.mutationOptions({
     onSuccess: () => {
       setSuccess('Magic link sent to your email! Please check your inbox.');
@@ -25,12 +65,20 @@ export function useAuth() {
   }));
 
   const verifyMagicLink = useMutation(trpc.auth.verifyMagicLink.mutationOptions({
-    onSuccess: () => {
+    onSuccess: (data) => {
       setSuccess('Password set successfully! You can now login.');
       setError('');
       // Redirect to dashboard after successful verification
       setTimeout(() => {
-        router.push('/dashboard');
+        if (data.user.role === 'student') {
+          router.push('/dashboard/student');
+        } else if (data.user.role === 'officer') {
+          router.push('/dashboard/officer');
+        } else if (data.user.role === 'admin') {
+          router.push('/dashboard/admin');
+        } else {
+          router.push('/dashboard');
+        }
       }, 2000);
     },
     onError: (error) => {
@@ -65,11 +113,18 @@ export function useAuth() {
     },
   }));
 
+  // Verify token query
+  const verifyToken = useQuery(trpc.auth.verifyToken.queryOptions(
+    { token: '' }, // This will be set when needed
+    {
+      enabled: false, // Don't run automatically
+    }
+  ));
 
   const hasSetPassword = useQuery(trpc.auth.hasSetPassword.queryOptions(
-    { userId: user.id || '' },
+    { userId: user?.id || '' },
     {
-      enabled: !!user.id,
+      enabled: !!user?.id,
       staleTime: 5 * 60 * 1000, // 5 minutes
     }
   ));
@@ -81,7 +136,8 @@ export function useAuth() {
 
   return {
     // State
-    isLoading: isUserLoading || sendMagicLink.isPending || verifyMagicLink.isPending ||
+    isLoading: isUserLoading || login.isPending || logout.isPending || 
+      sendMagicLink.isPending || verifyMagicLink.isPending ||
       sendPasswordReset.isPending || resetPassword.isPending,
     error,
     success,
@@ -92,10 +148,15 @@ export function useAuth() {
     isUserLoading,
 
     // Mutations
+    login: login.mutate,
+    logout: logout.mutate,
     sendMagicLink: sendMagicLink.mutate,
     verifyMagicLink: verifyMagicLink.mutate,
     sendPasswordReset: sendPasswordReset.mutate,
     resetPassword: resetPassword.mutate,
+
+    // Queries
+    verifyToken: verifyToken.refetch,
 
     // Utilities
     clearMessages,

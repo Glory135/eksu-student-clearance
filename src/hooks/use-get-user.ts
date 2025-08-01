@@ -8,15 +8,28 @@ const useGetUser = () => {
   const trpc = useTRPC()
   const session = useQuery(trpc.auth.session.queryOptions())
 
+  const user = session?.data?.user as User;
+  const department = session?.data?.user?.department as Department;
+
   return {
-    user: {
-      ...(session?.data?.user as User),
-      department: (session?.data?.user?.department as Department)
-    },
+    user: user ? {
+      id: user.id,
+      name: `${user.lastName} ${user.firstName}`,
+      email: user.email,
+      role: user.role,
+      department: department?.name || '',
+      departmentId: department?.id || '',
+      matricNo: user.matricNo,
+      hasSetPassword: user.hasSetPassword,
+      status: user.status,
+    } : null,
     isLoading: session?.isLoading as boolean,
     isError: session?.isError as boolean,
-    error: session?.error
+    error: session?.error,
+    isAuthenticated: !!user
   }
 }
 
 export default useGetUser
+
+export type UserType = ReturnType<typeof useGetUser>['user']

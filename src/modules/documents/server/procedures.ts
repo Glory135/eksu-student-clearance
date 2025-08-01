@@ -3,9 +3,92 @@ import { baseProcedure, createTRPCRouter } from '@/trpc/init';
 import { DocumentNotificationData, emailService } from '@/lib/emailService';
 import type { Sort, Where } from 'payload';
 import { RejectionReasonEnum } from '../types';
+import { TRPCError } from '@trpc/server';
+import type { Department, Media, Requirement, User } from '@/payload-types';
 
 export const documentsRouter = createTRPCRouter({
-  // Get all documents with filtering
+  // Get all documents with infinite pagination
+  getAllInfinite: baseProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(50).default(15),
+        cursor: z.string().optional(),
+        status: z.enum(['pending', 'under-review', 'approved', 'rejected', 'processing']).optional(),
+        department: z.string().optional(),
+        student: z.string().optional(),
+        requirement: z.string().optional(),
+        sort: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const where: Where = {};
+      let sort: Sort = '-uploadedAt';
+
+      // Status filter
+      if (input.status) {
+        where.status = { equals: input.status };
+      }
+
+      // Department filter
+      if (input.department) {
+        where.department = { equals: input.department };
+      }
+
+      // Student filter
+      if (input.student) {
+        where.student = { equals: input.student };
+      }
+
+      // Requirement filter
+      if (input.requirement) {
+        where.requirement = { equals: input.requirement };
+      }
+
+      // Sort logic
+      if (input.sort === 'uploadedAt') {
+        sort = '-uploadedAt';
+      } else if (input.sort === 'reviewedAt') {
+        sort = '-reviewedAt';
+      } else if (input.sort === 'fileName') {
+        sort = 'fileName';
+      }
+
+      // Cursor-based pagination
+      if (input.cursor) {
+        where.uploadedAt = { less_than: input.cursor };
+      }
+
+      const documents = await ctx.payload.find({
+        collection: 'documents',
+        depth: 2,
+        where,
+        sort,
+        limit: input.limit + 1, // Get one extra to check if there are more
+      });
+
+      let nextCursor: string | undefined = undefined;
+      const docs = documents.docs.slice(0, input.limit);
+      
+      if (documents.docs.length > input.limit) {
+        const nextItem = documents.docs[input.limit];
+        nextCursor = nextItem.uploadedAt;
+      }
+
+      return {
+        items: docs.map((doc) => ({
+          ...doc,
+          student: doc.student as User,
+          department: doc.department as Department,
+          requirement: doc.requirement as Requirement,
+          file: doc.file as Media,
+          reviewedBy: doc.reviewedBy as User,
+        })),
+        nextCursor,
+        hasMore: documents.docs.length > input.limit,
+      };
+    }),
+
+  // Get all documents with filtering (legacy for backward compatibility)
   getAll: baseProcedure
     .input(
       z.object({
@@ -64,11 +147,11 @@ export const documentsRouter = createTRPCRouter({
         ...documents,
         docs: documents.docs.map((doc) => ({
           ...doc,
-          student: doc.student as any,
-          department: doc.department as any,
-          requirement: doc.requirement as any,
-          file: doc.file as any,
-          reviewedBy: doc.reviewedBy as any,
+          student: doc.student as User,
+          department: doc.department as Department,
+          requirement: doc.requirement as Requirement,
+          file: doc.file as Media,
+          reviewedBy: doc.reviewedBy as User,
         })),
       };
     }),
@@ -89,11 +172,11 @@ export const documentsRouter = createTRPCRouter({
 
       return {
         ...document,
-        student: document.student as any,
-        department: document.department as any,
-        requirement: document.requirement as any,
-        file: document.file as any,
-        reviewedBy: document.reviewedBy as any,
+        student: document.student as User,
+        department: document.department as Department,
+        requirement: document.requirement as Requirement,
+        file: document.file as Media,
+        reviewedBy: document.reviewedBy as User,
       };
     }),
 
@@ -111,6 +194,81 @@ export const documentsRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Verify user is authenticated
+      if (!ctx.user) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'You must be logged in to upload documents',
+        });
+      }
+
+      // Verify user is a student or has permission to upload for others
+      if (ctx.user.role === 'student' && ctx.user.id !== input.student) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You can only upload documents for yourself',
+        });
+      }
+
+      // Verify the student exists and belongs to the specified department
+      const student = await ctx.payload.findByID({
+        collection: 'users',
+        id: input.student,
+      });
+
+      if (!student) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Student not found',
+        });
+      }
+
+      if (student.role !== 'student') {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Specified user is not a student',
+        });
+      }
+
+      // Verify department exists
+      const department = await ctx.payload.findByID({
+        collection: 'departments',
+        id: input.department,
+      });
+
+      if (!department) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Department not found',
+        });
+      }
+
+      // Verify requirement exists
+      const requirement = await ctx.payload.findByID({
+        collection: 'requirements',
+        id: input.requirement,
+      });
+
+      if (!requirement) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Requirement not found',
+        });
+      }
+
+      // Verify file exists
+      const file = await ctx.payload.findByID({
+        collection: 'media',
+        id: input.file,
+      });
+
+      if (!file) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'File not found',
+        });
+      }
+
       const document = await ctx.payload.create({
         collection: 'documents',
         data: {
@@ -123,39 +281,39 @@ export const documentsRouter = createTRPCRouter({
       });
 
       // Get related data for email notification
-      const student = await ctx.payload.findByID({
+      const studentData = await ctx.payload.findByID({
         collection: 'users',
         id: input.student,
       });
 
-      const department = await ctx.payload.findByID({
+      const departmentData = await ctx.payload.findByID({
         collection: 'departments',
         id: input.department,
       });
 
       // Notify officer about new document
-      if (department.officer) {
+      if (departmentData.officer) {
         const officer = await ctx.payload.findByID({
           collection: 'users',
-          id: department.officer as string,
+          id: departmentData.officer as string,
         });
 
         if (officer?.email) {
           await emailService.sendOfficerNotification(
             officer.email,
-            `${student.firstName} ${student.lastName}`,
+            `${studentData.firstName} ${studentData.lastName}`,
             document.fileName,
-            department.name
+            departmentData.name
           );
         }
       }
 
       return {
         ...document,
-        student: document.student as any,
-        department: document.department as any,
-        requirement: document.requirement as any,
-        file: document.file as any,
+        student: document.student as User,
+        department: document.department as Department,
+        requirement: document.requirement as Requirement,
+        file: document.file as Media,
       };
     }),
 
@@ -171,6 +329,50 @@ export const documentsRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Verify user is authenticated
+      if (!ctx.user) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'You must be logged in to review documents',
+        });
+      }
+
+      // Verify user has permission to review documents
+      if (!['officer', 'student-affairs', 'admin'].includes(ctx.user.role)) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to review documents',
+        });
+      }
+
+      // Get the document to review
+      const existingDocument = await ctx.payload.findByID({
+        collection: 'documents',
+        id: input.id,
+      });
+
+      if (!existingDocument) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Document not found',
+        });
+      }
+
+      // Verify user can review this document (same department or admin)
+      if (ctx.user.role !== 'admin') {
+        const userDepartment = await ctx.payload.findByID({
+          collection: 'departments',
+          id: ctx.user.department as string,
+        });
+
+        if (!userDepartment || userDepartment.id !== existingDocument.department) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'You can only review documents from your department',
+          });
+        }
+      }
+
       const { id, ...data } = input;
       
       const document = await ctx.payload.update({
@@ -179,7 +381,7 @@ export const documentsRouter = createTRPCRouter({
         data: {
           ...data,
           reviewedAt: new Date().toISOString(),
-          reviewedBy: 'current-user-id', // TODO: Get from auth context
+          reviewedBy: ctx.user.id, // Use the authenticated user's ID
         },
       });
 
@@ -207,7 +409,7 @@ export const documentsRouter = createTRPCRouter({
       const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/student`;
 
       // Send email notification to student
-      const notificationData : DocumentNotificationData = {
+      const notificationData: DocumentNotificationData = {
         studentName: `${student.firstName} ${student.lastName}`,
         studentEmail: student.email,
         documentName: document.fileName,
@@ -216,7 +418,7 @@ export const documentsRouter = createTRPCRouter({
         status: document.status as 'approved' | 'rejected' | 'under-review',
         reviewNotes: document.reviewNotes as string,
         rejectionReason: document.rejectionReason as string,
-        reviewedBy: reviewer?.firstName + " " + reviewer?.lastName || "Unknown",
+        reviewedBy: reviewer ? `${reviewer.firstName} ${reviewer.lastName}` : "Unknown",
         reviewedAt: document.reviewedAt as string,
         loginUrl,
       };
@@ -235,11 +437,11 @@ export const documentsRouter = createTRPCRouter({
 
       return {
         ...document,
-        student: document.student as any,
-        department: document.department as any,
-        requirement: document.requirement as any,
-        file: document.file as any,
-        reviewedBy: document.reviewedBy as any,
+        student: document.student as User,
+        department: document.department as Department,
+        requirement: document.requirement as Requirement,
+        file: document.file as Media,
+        reviewedBy: document.reviewedBy as User,
       };
     }),
 
@@ -251,6 +453,22 @@ export const documentsRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Verify user is authenticated
+      if (!ctx.user) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'You must be logged in to delete documents',
+        });
+      }
+
+      // Verify user has permission to delete documents
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only administrators can delete documents',
+        });
+      }
+
       await ctx.payload.delete({
         collection: 'documents',
         id: input.id,
@@ -262,7 +480,77 @@ export const documentsRouter = createTRPCRouter({
       };
     }),
 
-  // Get documents by student
+  // Get documents by student with infinite pagination
+  getByStudentInfinite: baseProcedure
+    .input(
+      z.object({
+        studentId: z.string(),
+        limit: z.number().min(1).max(50).default(15),
+        cursor: z.string().optional(),
+        status: z.enum(['pending', 'under-review', 'approved', 'rejected', 'processing']).optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      // Verify user is authenticated
+      if (!ctx.user) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'You must be logged in to view documents',
+        });
+      }
+
+      // Verify user has permission to view these documents
+      if (ctx.user.role === 'student' && ctx.user.id !== input.studentId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You can only view your own documents',
+        });
+      }
+
+      const where: Where = {
+        student: { equals: input.studentId },
+      };
+
+      if (input.status) {
+        where.status = { equals: input.status };
+      }
+
+      // Cursor-based pagination
+      if (input.cursor) {
+        where.uploadedAt = { less_than: input.cursor };
+      }
+
+      const documents = await ctx.payload.find({
+        collection: 'documents',
+        depth: 2,
+        where,
+        sort: '-uploadedAt',
+        limit: input.limit + 1, // Get one extra to check if there are more
+      });
+
+      let nextCursor: string | undefined = undefined;
+      const docs = documents.docs.slice(0, input.limit);
+      
+      if (documents.docs.length > input.limit) {
+        const nextItem = documents.docs[input.limit];
+        nextCursor = nextItem.uploadedAt;
+      }
+
+      return {
+        items: docs.map((doc) => ({
+          ...doc,
+          student: doc.student as User,
+          department: doc.department as Department,
+          requirement: doc.requirement as Requirement,
+          file: doc.file as Media,
+          reviewedBy: doc.reviewedBy as User,
+        })),
+        nextCursor,
+        hasMore: documents.docs.length > input.limit,
+      };
+    }),
+
+  // Get documents by student (legacy for backward compatibility)
   getByStudent: baseProcedure
     .input(
       z.object({
@@ -271,6 +559,22 @@ export const documentsRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
+      // Verify user is authenticated
+      if (!ctx.user) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'You must be logged in to view documents',
+        });
+      }
+
+      // Verify user has permission to view these documents
+      if (ctx.user.role === 'student' && ctx.user.id !== input.studentId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You can only view your own documents',
+        });
+      }
+
       const where: Where = {
         student: { equals: input.studentId },
       };
@@ -290,16 +594,94 @@ export const documentsRouter = createTRPCRouter({
         ...documents,
         docs: documents.docs.map((doc) => ({
           ...doc,
-          student: doc.student as any,
-          department: doc.department as any,
-          requirement: doc.requirement as any,
-          file: doc.file as any,
-          reviewedBy: doc.reviewedBy as any,
+          student: doc.student as User,
+          department: doc.department as Department,
+          requirement: doc.requirement as Requirement,
+          file: doc.file as Media,
+          reviewedBy: doc.reviewedBy as User,
         })),
       };
     }),
 
-  // Get documents by department
+  // Get documents by department with infinite pagination
+  getByDepartmentInfinite: baseProcedure
+    .input(
+      z.object({
+        departmentId: z.string(),
+        limit: z.number().min(1).max(50).default(15),
+        cursor: z.string().optional(),
+        status: z.enum(['pending', 'under-review', 'approved', 'rejected', 'processing']).optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      // Verify user is authenticated
+      if (!ctx.user) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'You must be logged in to view documents',
+        });
+      }
+
+      // Verify user has permission to view these documents
+      if (ctx.user.role === 'student') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Students cannot view department documents',
+        });
+      }
+
+      // Verify user belongs to the department or is admin
+      if (ctx.user.role !== 'admin' && ctx.user.department !== input.departmentId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You can only view documents from your department',
+        });
+      }
+
+      const where: Where = {
+        department: { equals: input.departmentId },
+      };
+
+      if (input.status) {
+        where.status = { equals: input.status };
+      }
+
+      // Cursor-based pagination
+      if (input.cursor) {
+        where.uploadedAt = { less_than: input.cursor };
+      }
+
+      const documents = await ctx.payload.find({
+        collection: 'documents',
+        depth: 2,
+        where,
+        sort: '-uploadedAt',
+        limit: input.limit + 1, // Get one extra to check if there are more
+      });
+
+      let nextCursor: string | undefined = undefined;
+      const docs = documents.docs.slice(0, input.limit);
+      
+      if (documents.docs.length > input.limit) {
+        const nextItem = documents.docs[input.limit];
+        nextCursor = nextItem.uploadedAt;
+      }
+
+      return {
+        items: docs.map((doc) => ({
+          ...doc,
+          student: doc.student as User,
+          department: doc.department as Department,
+          requirement: doc.requirement as Requirement,
+          file: doc.file as Media,
+          reviewedBy: doc.reviewedBy as User,
+        })),
+        nextCursor,
+        hasMore: documents.docs.length > input.limit,
+      };
+    }),
+
+  // Get documents by department (legacy for backward compatibility)
   getByDepartment: baseProcedure
     .input(
       z.object({
@@ -310,6 +692,30 @@ export const documentsRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
+      // Verify user is authenticated
+      if (!ctx.user) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'You must be logged in to view documents',
+        });
+      }
+
+      // Verify user has permission to view these documents
+      if (ctx.user.role === 'student') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Students cannot view department documents',
+        });
+      }
+
+      // Verify user belongs to the department or is admin
+      if (ctx.user.role !== 'admin' && ctx.user.department !== input.departmentId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You can only view documents from your department',
+        });
+      }
+
       const where: Where = {
         department: { equals: input.departmentId },
       };
@@ -331,11 +737,11 @@ export const documentsRouter = createTRPCRouter({
         ...documents,
         docs: documents.docs.map((doc) => ({
           ...doc,
-          student: doc.student as any,
-          department: doc.department as any,
-          requirement: doc.requirement as any,
-          file: doc.file as any,
-          reviewedBy: doc.reviewedBy as any,
+          student: doc.student as User,
+          department: doc.department as Department,
+          requirement: doc.requirement as Requirement,
+          file: doc.file as Media,
+          reviewedBy: doc.reviewedBy as User,
         })),
       };
     }),
@@ -349,6 +755,37 @@ export const documentsRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
+      // Verify user is authenticated
+      if (!ctx.user) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'You must be logged in to view statistics',
+        });
+      }
+
+      // Verify user has permission to view these statistics
+      if (ctx.user.role === 'student') {
+        // Students can only view their own stats
+        if (input.studentId && input.studentId !== ctx.user.id) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'You can only view your own statistics',
+          });
+        }
+        // Force studentId to be the current user's ID
+        input.studentId = ctx.user.id;
+      } else if (ctx.user.role !== 'admin') {
+        // Officers can only view stats for their department
+        if (input.departmentId && input.departmentId !== ctx.user.department) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'You can only view statistics for your department',
+          });
+        }
+        // Force departmentId to be the current user's department
+        input.departmentId = ctx.user.department as string;
+      }
+
       const where: Where = {};
 
       if (input.departmentId) {

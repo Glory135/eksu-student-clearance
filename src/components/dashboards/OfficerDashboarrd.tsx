@@ -28,9 +28,11 @@ import {
   Plus,
   Loader2,
   Building,
-  User
+  User,
+  RefreshCw
 } from "lucide-react";
 import { useDocuments, useDepartments, useUsers } from '@/hooks';
+import { RejectionReasonEnum } from '@/modules/documents/types';
 
 interface OfficerDashboardProps {
   onViewDocument: () => void;
@@ -45,12 +47,13 @@ export function OfficerDashboard({ onViewDocument, userData }: OfficerDashboardP
   const [reviewNotes, setReviewNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
 
-  // Use tRPC hooks
+  // Use tRPC hooks with infinite queries
   const { 
-    documents: allDocuments, 
+    departmentDocuments,
+    getDocumentsByDepartmentInfinite,
     reviewDocument, 
     isLoading: isDocumentsLoading,
-    getDocumentsByDepartment
+    documentStats
   } = useDocuments();
 
   const { departments } = useDepartments();
@@ -59,20 +62,12 @@ export function OfficerDashboard({ onViewDocument, userData }: OfficerDashboardP
   // Get officer's department
   const officerDepartment = departments.find(dept => dept.id === userData?.department);
 
-  // Get pending documents for officer's department
-  const pendingDocuments = allDocuments.filter(doc => 
-    doc.department?.id === userData?.department && 
-    doc.status === 'pending'
-  );
-
   // Get documents by status
   const getDocumentsByStatus = (status: string) => {
-    return allDocuments.filter(doc => 
-      doc.department?.id === userData?.department && 
-      doc.status === status
-    );
+    return departmentDocuments.filter(doc => doc.status === status);
   };
 
+  const pendingDocuments = getDocumentsByStatus('pending');
   const approvedDocuments = getDocumentsByStatus('approved');
   const rejectedDocuments = getDocumentsByStatus('rejected');
   const underReviewDocuments = getDocumentsByStatus('under-review');
@@ -84,7 +79,7 @@ export function OfficerDashboard({ onViewDocument, userData }: OfficerDashboardP
     doc.student?.matricNo.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleReview = async (documentId: string, action: 'approve' | 'reject' | 'under-review', notes: string, rejectionReason?: string) => {
+  const handleReview = async (documentId: string, action: 'approved' | 'rejected' | 'under-review', notes: string, rejectionReason?: RejectionReasonEnum) => {
     try {
       await reviewDocument(documentId, action, notes, rejectionReason);
       
@@ -99,11 +94,17 @@ export function OfficerDashboard({ onViewDocument, userData }: OfficerDashboardP
   };
 
   const quickApprove = async (documentId: string) => {
-    await handleReview(documentId, 'approve', 'Document approved');
+    await handleReview(documentId, 'approved', 'Document approved');
   };
 
   const quickReject = async (documentId: string) => {
-    await handleReview(documentId, 'reject', 'Document rejected', 'not-clear');
+    await handleReview(documentId, 'rejected', 'Document rejected', RejectionReasonEnum.NOT_CLEAR);
+  };
+
+  const handleLoadMore = () => {
+    if (getDocumentsByDepartmentInfinite.hasNextPage) {
+      getDocumentsByDepartmentInfinite.fetchNextPage();
+    }
   };
 
   const getPriorityBadge = (priority: string) => {
@@ -142,7 +143,7 @@ export function OfficerDashboard({ onViewDocument, userData }: OfficerDashboardP
     approved: approvedDocuments.length,
     rejected: rejectedDocuments.length,
     underReview: underReviewDocuments.length,
-    total: allDocuments.filter(doc => doc.department?.id === userData?.department).length
+    total: departmentDocuments.length
   };
 
   if (isDocumentsLoading) {
@@ -269,53 +270,78 @@ export function OfficerDashboard({ onViewDocument, userData }: OfficerDashboardP
                     <p className="text-sm">All documents have been reviewed</p>
                   </div>
                 ) : (
-                  filteredDocuments.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <FileText className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">{doc.fileName}</p>
-                          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                            <User className="h-3 w-3" />
-                            <span>{doc.student?.name}</span>
-                            <span>•</span>
-                            <span>{doc.student?.matricNo}</span>
-                            <span>•</span>
-                            <span>{formatDate(doc.uploadedAt)}</span>
+                  <>
+                    {filteredDocuments.map((doc) => (
+                      <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <FileText className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">{doc.fileName}</p>
+                            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                              <User className="h-3 w-3" />
+                              <span>{doc.student?.name}</span>
+                              <span>•</span>
+                              <span>{doc.student?.matricNo}</span>
+                              <span>•</span>
+                              <span>{formatDate(doc.uploadedAt)}</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {doc.requirement?.name} • {doc.department?.name}
+                            </p>
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            {doc.requirement?.name} • {doc.department?.name}
-                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedDocument(doc)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Review
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => quickApprove(doc.id)}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => quickReject(doc.id)}
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Reject
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
+                    ))}
+                    
+                    {/* Load More Button */}
+                    {getDocumentsByDepartmentInfinite.hasNextPage && (
+                      <div className="flex justify-center pt-4">
                         <Button
+                          onClick={handleLoadMore}
+                          disabled={getDocumentsByDepartmentInfinite.isFetchingNextPage}
                           variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedDocument(doc)}
                         >
-                          <Eye className="h-4 w-4 mr-1" />
-                          Review
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => quickApprove(doc.id)}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Approve
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => quickReject(doc.id)}
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Reject
+                          {getDocumentsByDepartmentInfinite.isFetchingNextPage ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Loading...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="mr-2 h-4 w-4" />
+                              Load More
+                            </>
+                          )}
                         </Button>
                       </div>
-                    </div>
-                  ))
+                    )}
+                  </>
                 )}
               </div>
             </CardContent>
@@ -556,9 +582,9 @@ export function OfficerDashboard({ onViewDocument, userData }: OfficerDashboardP
                 <Button
                   onClick={() => handleReview(
                     selectedDocument.id,
-                    reviewAction as 'approve' | 'reject' | 'under-review',
+                    reviewAction as 'approved' | 'rejected' | 'under-review',
                     reviewNotes,
-                    rejectionReason
+                    rejectionReason as RejectionReasonEnum
                   )}
                   disabled={!reviewAction}
                 >

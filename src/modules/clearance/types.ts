@@ -7,6 +7,9 @@ export type ClearanceRouterInputs = inferRouterInputs<AppRouter>['clearance'];
 export type GetStudentClearanceOutput = ClearanceRouterOutputs['getStudentClearance'];
 export type GetStudentClearanceInput = ClearanceRouterInputs['getStudentClearance'];
 
+export type GetAllClearanceProgressInfiniteOutput = ClearanceRouterOutputs['getAllClearanceProgressInfinite'];
+export type GetAllClearanceProgressInfiniteInput = ClearanceRouterInputs['getAllClearanceProgressInfinite'];
+
 export type GetAllClearanceProgressOutput = ClearanceRouterOutputs['getAllClearanceProgress'];
 export type GetAllClearanceProgressInput = ClearanceRouterInputs['getAllClearanceProgress'];
 
@@ -28,5 +31,6 @@ export type LogClearanceActionInput = ClearanceRouterInputs['logClearanceAction'
 // Clearance types
 export type StudentClearanceType = GetStudentClearanceOutput;
 export type ClearanceProgressType = GetAllClearanceProgressOutput;
+export type ClearanceProgressInfiniteType = GetAllClearanceProgressInfiniteOutput;
 export type ClearanceStatsType = GetClearanceStatsOutput;
 export type ClearanceTimelineType = GetClearanceTimelineOutput; 

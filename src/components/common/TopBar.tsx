@@ -1,6 +1,5 @@
 import React from 'react'
 import { Button } from '../ui/button'
-import { UserInterface } from '@/lib/types';
 import { Bell, User } from 'lucide-react';
 import { Logo } from './Logo';
 import { getRoleIcon } from '@/lib/commonFunctions';
@@ -9,6 +8,7 @@ import { Badge } from '../ui/badge';
 import MaxWidthWrapper from './MaxWidthWrapper';
 import { cn } from '@/lib/utils';
 import { SidebarTrigger } from '../ui/sidebar';
+import { UserType } from '@/hooks/use-get-user';
 
 const TopBar = (
   {
@@ -18,7 +18,7 @@ const TopBar = (
   }: {
     sidebarOpen: boolean;
     setSidebarOpen: (open: boolean) => void;
-    user?: UserInterface;
+    user?: UserType;
     notifications: number;
     className?: string;
   }
@@ -57,7 +57,7 @@ const TopBar = (
           {/* User Menu */}
           <div className="flex items-center space-x-3">
             <div className="hidden md:block text-right">
-              <p className="text-sm font-medium">{user?.name || 'User'}</p>
+              <p className="text-sm font-medium">{user?.name}</p>
               <p className="text-xs text-muted-foreground flex items-center justify-end">
                 {getRoleIcon(user?.role)}
                 <span className="ml-1">

@@ -73,7 +73,7 @@ export function AdminDashboard({ onViewDocument }: AdminDashboardProps) {
 
   // Filter users by search term
   const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (user.matricNo && user.matricNo.toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -455,7 +455,7 @@ export function AdminDashboard({ onViewDocument }: AdminDashboardProps) {
                         <User className="h-4 w-4 text-primary" />
                       </div>
                       <div>
-                        <p className="font-medium">{user.name}</p>
+                        <p className="font-medium">{user.firstName} {user.lastName}</p>
                         <p className="text-sm text-muted-foreground">{user.email}</p>
                         {user.matricNo && (
                           <p className="text-xs text-muted-foreground">{user.matricNo}</p>

@@ -15,7 +15,6 @@ import { Logo } from '../common/Logo';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { USER_ROLES } from '@/lib/constatnts';
-import { UserInterface } from '@/lib/types';
 import TopBar from '../common/TopBar';
 import { getRoleIcon, getRoleLabel } from '@/lib/commonFunctions';
 import {
@@ -31,10 +30,12 @@ import {
 } from '../ui/sidebar';
 import { usePathname } from 'next/navigation';
 import MaxWidthWrapper from '../common/MaxWidthWrapper';
+import { useAuth } from '@/hooks/useAuth';
+import { UserType } from '@/hooks/use-get-user';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  user?: UserInterface;
+  user?: UserType;
   title: string;
   subtitle?: string;
   onLogout?: () => void;
@@ -54,6 +55,18 @@ export function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const router = useRouter();
   const pathname = usePathname();
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      if (onLogout) {
+        onLogout();
+      }
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   const getNavigationItems = (role: string) => {
     switch (role) {
@@ -129,16 +142,14 @@ export function DashboardLayout({
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter className="pt-4 border-t">
-            {onLogout && (
-              <Button
-                variant="ghost"
-                className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-                onClick={onLogout}
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="ml-3">Logout</span>
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="ml-3">Logout</span>
+            </Button>
           </SidebarFooter>
         </Sidebar>
 

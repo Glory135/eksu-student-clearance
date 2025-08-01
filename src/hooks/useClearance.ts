@@ -1,31 +1,47 @@
 'use client';
 import { useTRPC } from '@/trpc/client';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import useGetUser from './use-get-user';
 
 export function useClearance() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState('');
-  const trpc = useTRPC()
-  const { user } = useGetUser()
+  const trpc = useTRPC();
+  const { user, isAuthenticated, isLoading: isUserLoading } = useGetUser();
 
+  // Infinite Queries
+  const getAllClearanceProgressInfinite = useInfiniteQuery({
+    ...trpc.clearance.getAllClearanceProgressInfinite.infiniteQueryOptions({
+      limit: 15,
+    }),
+    enabled: isAuthenticated && !isUserLoading && user?.role !== 'student',
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+  });
 
-  // Queries
+  // Legacy Queries (for backward compatibility)
   const getStudentClearance = useQuery(trpc.clearance.getStudentClearance.queryOptions({
-    studentId: user.id,
+    studentId: user?.id || '',
+  }, {
+    enabled: isAuthenticated && !isUserLoading && !!user?.id,
   }));
 
   const getAllClearanceProgress = useQuery(trpc.clearance.getAllClearanceProgress.queryOptions({
     limit: 50,
+  }, {
+    enabled: isAuthenticated && !isUserLoading && user?.role !== 'student',
   }));
 
   const getClearanceStats = useQuery(trpc.clearance.getClearanceStats.queryOptions({
-    departmentId: user.department?.id || "",
+    departmentId: user?.departmentId || "",
+  }, {
+    enabled: isAuthenticated && !isUserLoading,
   }));
 
   const getClearanceTimeline = useQuery(trpc.clearance.getClearanceTimeline.queryOptions({
-    studentId: user.id,
+    studentId: user?.id || '',
+  }, {
+    enabled: isAuthenticated && !isUserLoading && !!user?.id,
   }));
 
   // Mutations
@@ -33,6 +49,7 @@ export function useClearance() {
     onSuccess: () => {
       setUpdateError('');
       // Invalidate and refetch clearance data
+      getAllClearanceProgressInfinite.refetch();
       getAllClearanceProgress.refetch();
       getClearanceStats.refetch();
     },
@@ -44,6 +61,7 @@ export function useClearance() {
   const markClearanceCompleted = useMutation(trpc.clearance.markClearanceCompleted.mutationOptions({
     onSuccess: () => {
       setUpdateError('');
+      getAllClearanceProgressInfinite.refetch();
       getAllClearanceProgress.refetch();
       getClearanceStats.refetch();
     },
@@ -63,6 +81,17 @@ export function useClearance() {
     studentId: string,
     status: 'not-started' | 'in-progress' | 'completed' | 'on-hold'
   ) => {
+    if (!isAuthenticated) {
+      setUpdateError('You must be logged in to update clearance status');
+      return;
+    }
+
+    // Verify user has permission to update clearance status
+    if (!['officer', 'student-affairs', 'admin'].includes(user?.role || '')) {
+      setUpdateError('You do not have permission to update clearance status');
+      return;
+    }
+
     setIsUpdating(true);
     setUpdateError('');
 
@@ -80,6 +109,17 @@ export function useClearance() {
 
   // Mark completed helper
   const handleMarkCompleted = async (studentId: string) => {
+    if (!isAuthenticated) {
+      setUpdateError('You must be logged in to mark clearance as completed');
+      return;
+    }
+
+    // Verify user has permission to mark clearance as completed
+    if (!['officer', 'student-affairs', 'admin'].includes(user?.role || '')) {
+      setUpdateError('You do not have permission to mark clearance as completed');
+      return;
+    }
+
     setIsUpdating(true);
     setUpdateError('');
 
@@ -102,6 +142,11 @@ export function useClearance() {
     documentId?: string,
     metadata?: Record<string, unknown>
   ) => {
+    if (!isAuthenticated) {
+      console.error('You must be logged in to log clearance actions');
+      return;
+    }
+
     try {
       await logClearanceAction.mutateAsync({
         action,
@@ -115,20 +160,33 @@ export function useClearance() {
     }
   };
 
+  // Helper to get all clearance progress from infinite query
+  const getAllClearanceProgressData = () => {
+    return getAllClearanceProgressInfinite.data?.pages.flatMap(page => page.items) || [];
+  };
+
   return {
     // State
     isUpdating,
     updateError,
+    isUserLoading,
+    isAuthenticated,
 
-    // Queries
+    // Infinite Queries
+    getAllClearanceProgressInfinite,
+
+    // Legacy Queries
     clearanceProgress: getAllClearanceProgress.data?.students || [],
     clearanceStats: getClearanceStats.data,
-    isLoading: getAllClearanceProgress.isLoading,
+    isLoading: getAllClearanceProgress.isLoading || isUserLoading,
     isStatsLoading: getClearanceStats.isLoading,
 
     // Query functions
     getStudentClearance,
     getClearanceTimeline,
+
+    // Data helpers
+    allClearanceProgress: getAllClearanceProgressData(),
 
     // Mutations
     updateClearanceStatus: handleUpdateStatus,
@@ -137,6 +195,6 @@ export function useClearance() {
 
     // Utilities
     clearUpdateError: () => setUpdateError(''),
-    refetch: getAllClearanceProgress.refetch,
+    refetch: getAllClearanceProgressInfinite.refetch,
   };
 } 

@@ -5,39 +5,42 @@ import { OfficerDashboard } from '@/components/dashboards/OfficerDashboarrd';
 import { DocumentViewer } from '@/components/DocumentViewer';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useRouter } from 'next/navigation';
-import { UserInterface } from '@/lib/types';
-import { USER_ROLES } from '@/lib/constatnts';
-
+import { useAuth } from '@/hooks/useAuth';
+import useGetUser from '@/hooks/use-get-user';
 
 export default function OfficerDashboardPage() {
-  const [currentUser, setCurrentUser] = useState<UserInterface | null>(null);
   const [showDocumentViewer, setShowDocumentViewer] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const { user, isLoading: isUserLoading, isAuthenticated } = useGetUser();
+  const { logout } = useAuth();
 
   useEffect(() => {
-    // Check for existing session and validate user role
-    const token = localStorage.getItem('payload_token');
-    if (true) {
-      // In a real app, validate the token with the server
-      const mockUser: UserInterface = {
-        id: 'demo-officer',
-        name: 'Dr. Sarah Johnson',
-        email: 's.johnson@eksu.edu.ng',
-        role: USER_ROLES.officer,
-        department: 'Computer Science',
-      };
-      setCurrentUser(mockUser);
-    } else {
-      // Redirect to login if no token
-      router.push('/dashboard');
+    // Redirect if user is not authenticated
+    if (!isUserLoading && (!isAuthenticated || !user)) {
+      router.push('/login');
+      return;
     }
-    setIsLoading(false);
-  }, [router]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('payload_token');
-    router.push('/dashboard');
+    // Redirect if user is not an officer or student-affairs
+    if (user && user.role !== 'officer' && user.role !== 'student-affairs') {
+      // Redirect to appropriate dashboard based on role
+      if (user.role === 'student') {
+        router.push('/dashboard/student');
+      } else if (user.role === 'admin') {
+        router.push('/dashboard/admin');
+      } else {
+        router.push('/dashboard');
+      }
+    }
+  }, [user, isAuthenticated, isUserLoading, router]);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
   };
 
   const handleViewDocument = () => {
@@ -49,12 +52,24 @@ export default function OfficerDashboardPage() {
   };
 
   // Show loading state
-  if (isLoading) {
+  if (isUserLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
           <p className="mt-2 text-muted-foreground">Loading officer dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect if not authenticated or not an officer
+  if (!isAuthenticated || !user || (user.role !== 'officer' && user.role !== 'student-affairs')) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-muted-foreground">Redirecting...</p>
         </div>
       </div>
     );
@@ -71,24 +86,19 @@ export default function OfficerDashboardPage() {
     );
   }
 
-  // Show dashboard if user is authenticated
-  if (currentUser) {
-    return (
-      <DashboardLayout
-        user={currentUser}
-        title="Clearance Officer Dashboard"
-        subtitle="Review and approve student documents for your department"
-        onLogout={handleLogout}
-        notifications={5}
-      >
-        <OfficerDashboard
-          onViewDocument={handleViewDocument}
-          userData={currentUser}
-        />
-      </DashboardLayout>
-    );
-  }
-
-  // This should not be reached
-  return null;
+  // Show dashboard if user is authenticated and is an officer
+  return (
+    <DashboardLayout
+      user={user}
+      title="Clearance Officer Dashboard"
+      subtitle="Review and approve student documents for your department"
+      onLogout={handleLogout}
+      notifications={5}
+    >
+      <OfficerDashboard
+        onViewDocument={handleViewDocument}
+        userData={user}
+      />
+    </DashboardLayout>
+  );
 } 

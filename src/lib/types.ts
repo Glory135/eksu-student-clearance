@@ -1,5 +1,5 @@
 
-export type USER_ROLE_TYPE = 'student' | "officer" | "admin"
+export type USER_ROLE_TYPE = "student" | "officer" | "student-affairs" | "admin"
 
 export interface UserInterface {
   id: string;

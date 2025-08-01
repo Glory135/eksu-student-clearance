@@ -3,14 +3,29 @@ import { cache } from 'react';
 import { getPayload } from 'payload';
 import config from '../payload.config';
 import superjson from 'superjson';
+import { headers } from 'next/headers';
+import type { User } from '@/payload-types';
 
-// Context factory with Payload CMS
+// Context factory with Payload CMS and authentication
 export const createTRPCContext = cache(async () => {
   const payload = await getPayload({ config });
   
+  // Get headers for authentication
+  const headersList = await headers();
+  
+  // Get authenticated user from Payload
+  let user: User | null = null;
+  try {
+    const session = await payload.auth({ headers: headersList });
+    user = session.user as User || null;
+  } catch (error) {
+    // User is not authenticated
+    user = null;
+  }
+  
   return { 
     payload, // Payload CMS instance
-    userId: 'user_123', // TODO: Add proper auth logic
+    user, // Authenticated user or null
   };
 });
 
@@ -23,8 +38,22 @@ const t = initTRPC.create({
 export const createTRPCRouter = t.router;
 export const createCallerFactory = t.createCallerFactory;
 
-// Base procedure with Payload middleware
+// Base procedure with Payload middleware and authentication
 export const baseProcedure = t.procedure.use(async ({ next }) => {
   const payload = await getPayload({ config });
-  return next({ ctx: { payload } });
+  
+  // Get headers for authentication
+  const headersList = await headers();
+  
+  // Get authenticated user from Payload
+  let user: User | null = null;
+  try {
+    const session = await payload.auth({ headers: headersList });
+    user = session.user as User || null;
+  } catch (error) {
+    // User is not authenticated
+    user = null;
+  }
+  
+  return next({ ctx: { payload, user } });
 });

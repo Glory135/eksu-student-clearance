@@ -210,7 +210,7 @@ export const Documents: CollectionConfig = {
               if (officer?.email) {
                 await emailService.sendOfficerNotification(
                   officer.email,
-                  student.name,
+                  `${student.firstName} ${student.lastName}`,
                   doc.fileName,
                   department.name
                 );
@@ -219,7 +219,7 @@ export const Documents: CollectionConfig = {
           } else if (operation === 'update' && doc.status) {
             // Notify student about status change
             const notificationData = {
-              studentName: student.name,
+              studentName: `${student.firstName} ${student.lastName}`,
               studentEmail: student.email,
               documentName: doc.fileName,
               department: department.name,
@@ -227,7 +227,7 @@ export const Documents: CollectionConfig = {
               status: doc.status as 'approved' | 'rejected' | 'under-review',
               reviewNotes: doc.reviewNotes,
               rejectionReason: doc.rejectionReason,
-              reviewedBy: reviewer?.name,
+              reviewedBy: `${reviewer?.firstName} ${reviewer?.lastName}`,
               reviewedAt: doc.reviewedAt,
               loginUrl,
             };
